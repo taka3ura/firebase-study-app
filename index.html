@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Firebase爆速掲示板</title>
+  </head>
+  <body>
+    <h1>Firebase 掲示板テスト</h1>
+
+    <input type="text" id="userName" placeholder="名前" />
+    <input type="text" id="message" placeholder="メッセージ" />
+    <button id="sendBtn">送信</button>
+
+    <div id="output" style="margin-top: 20px; border-top: 1px solid #ccc"></div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        addDoc,
+        onSnapshot,
+        query,
+        orderBy,
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      // --- ここに自分のプロジェクトの設定を貼り付ける ---
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID",
+      };
+
+      // 初期化
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // 1. 送信処理（LaravelのController@storeに相当）
+      document.getElementById("sendBtn").addEventListener("click", async () => {
+        const name = document.getElementById("userName").value;
+        const text = document.getElementById("message").value;
+
+        await addDoc(collection(db, "posts"), {
+          name: name,
+          text: text,
+          time: new Date(),
+        });
+
+        document.getElementById("message").value = ""; // 入力欄を空に
+      });
+
+      // 2. リアルタイム受信処理（Laravelにはない超便利機能）
+      const q = query(collection(db, "posts"), orderBy("time", "desc"));
+      onSnapshot(q, (snapshot) => {
+        const output = document.getElementById("output");
+        output.innerHTML = ""; // 画面を一度クリア
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          output.innerHTML += `<p><strong>${data.name}</strong>: ${data.text}</p>`;
+        });
+      });
+    </script>
+  </body>
+</html>
