@@ -24,15 +24,7 @@
         orderBy,
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-      // --- ここに自分のプロジェクトの設定を貼り付ける ---
-      const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID",
-      };
+      import { firebaseConfig } from "./config.js";
 
       // 初期化
       const app = initializeApp(firebaseConfig);
