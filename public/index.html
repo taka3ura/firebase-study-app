@@ -7,7 +7,17 @@
   <body>
     <h1>Firebase 掲示板テスト</h1>
 
-    <input type="text" id="userName" placeholder="名前" />
+    <div
+      id="authArea"
+      style="margin-bottom: 20px; padding: 10px; background: #f4f4f4"
+    >
+      <button id="loginBtn">Googleでログイン</button>
+      <div id="userProfile" style="display: none">
+        <p>こんにちは、<span id="displayName"></span>さん</p>
+        <button id="logoutBtn">ログアウト</button>
+      </div>
+    </div>
+
     <input type="text" id="message" placeholder="メッセージ" />
     <button id="sendBtn">送信</button>
 
@@ -25,19 +35,62 @@
         orderBy,
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        signInWithPopup,
+        signOut,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
       import { firebaseConfig } from "./config.js";
 
       // 初期化
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
+      const auth = getAuth(app); // ←Authのリモコン（本体）
+      const provider = new GoogleAuthProvider(); // ←Googleログインの道具
+
+      // --- ログイン・ログアウトの処理 ---
+
+      // ログインボタンを押した時
+      document.getElementById("loginBtn").onclick = async () => {
+        await signInWithPopup(auth, provider);
+      };
+
+      // ログアウトボタンを押した時
+      document.getElementById("logoutBtn").onclick = () => {
+        signOut(auth);
+      };
+
+      // ログイン状態を常に監視する「見張り番」
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          // ログインしている時
+          document.getElementById("loginBtn").style.display = "none";
+          document.getElementById("userProfile").style.display = "block";
+          document.getElementById("displayName").innerText = user.displayName;
+          document.getElementById("userName").value = user.displayName; // 名前を自動で入れる
+        } else {
+          // ログアウトしている時
+          document.getElementById("loginBtn").style.display = "block";
+          document.getElementById("userProfile").style.display = "none";
+          document.getElementById("userName").value = "";
+        }
+      });
 
       // 1. 送信処理（LaravelのController@storeに相当）
       document.getElementById("sendBtn").addEventListener("click", async () => {
-        const name = document.getElementById("userName").value;
         const text = document.getElementById("message").value;
-
+        const user = auth.currentUser;
+        if (!user) {
+          alert("投稿するにはログインが必要です！");
+          return;
+        }
         await addDoc(collection(db, "posts"), {
-          name: name,
+          uid: user.uid, // ユーザーを特定する最強のID
+          name: user.displayName, // Googleアカウントの名前
+          profileImg: user.photoURL, // ついでにアイコン画像も保存しちゃう
           text: text,
           time: new Date(),
         });
@@ -49,10 +102,19 @@
       const q = query(collection(db, "posts"), orderBy("time", "desc"));
       onSnapshot(q, (snapshot) => {
         const output = document.getElementById("output");
-        output.innerHTML = ""; // 画面を一度クリア
+        output.innerHTML = "";
         snapshot.forEach((doc) => {
           const data = doc.data();
-          output.innerHTML += `<p><strong>${data.name}</strong>: ${data.text}</p>`;
+          // アイコン画像を表示する <img> タグを追加
+          output.innerHTML += `
+      <div style="border-bottom: 1px solid #eee; padding: 10px; display: flex; align-items: center; gap: 10px;">
+        <img src="${data.profileImg}" style="width: 40px; height: 40px; border-radius: 50%;">
+        <div>
+          <strong>${data.name}</strong>
+          <p style="margin: 5px 0 0 0;">${data.text}</p>
+        </div>
+      </div>
+    `;
         });
       });
     </script>
