@@ -23,6 +23,14 @@
 
     <div id="output" style="margin-top: 20px; border-top: 1px solid #ccc"></div>
 
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+      }
+    </script>
+
     <script type="module">
       //モジュールと書くことで外のファイルを読み取れる
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -44,6 +52,13 @@
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
       import { firebaseConfig } from "./config.js";
+
+      // Geminiの初期化
+      import { GoogleGenerativeAI } from "@google/generative-ai";
+      const genAI = new GoogleGenerativeAI(firebaseConfig.GEMINI_API_KEY); // config.jsにキーを追加してください
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash-lite",
+      });
 
       // 初期化
       const app = initializeApp(firebaseConfig);
@@ -70,12 +85,10 @@
           document.getElementById("loginBtn").style.display = "none";
           document.getElementById("userProfile").style.display = "block";
           document.getElementById("displayName").innerText = user.displayName;
-          document.getElementById("userName").value = user.displayName; // 名前を自動で入れる
         } else {
           // ログアウトしている時
           document.getElementById("loginBtn").style.display = "block";
           document.getElementById("userProfile").style.display = "none";
-          document.getElementById("userName").value = "";
         }
       });
 
@@ -96,6 +109,25 @@
         });
 
         document.getElementById("message").value = ""; // 入力欄を空に
+
+        try {
+          const prompt = `次の投稿に対して、20文字以内で短く優しい言葉を返して： "${text}"`;
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const aiText = response.text();
+
+          // --- 手順C: AIの返信をFirestoreに保存 ---
+          await addDoc(collection(db, "posts"), {
+            uid: "gemini-bot",
+            name: "Gemini先生",
+            profileImg:
+              "https://res.cloudinary.com/dee34nq47/image/upload/v1751473623/2_2_afbiq3.png",
+            text: aiText,
+            time: new Date(),
+          });
+        } catch (error) {
+          console.error("Geminiエラー:", error);
+        }
       });
 
       // 2. リアルタイム受信処理（Laravelにはない超便利機能）
