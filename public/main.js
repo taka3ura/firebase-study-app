@@ -67,18 +67,15 @@ onAuthStateChanged(auth, async (user) => {
 
     subscribeToMessages(user.uid);
 
-    // 履歴を確認し、今回のユーザーの発言数をもとにステップを決定
+    // 1. 履歴を確認（自分宛て、または自分が送った全メッセージ）
     const q = query(
       collection(db, "messages"),
       where("targetUid", "==", user.uid),
     );
     const snapshot = await getDocs(q);
-    const userMsgs = snapshot.docs.filter((d) => d.data().uid === user.uid);
 
-    userAnswers = userMsgs.map((d) => d.data().text);
-    currentStep = userMsgs.length;
-
-    if (userMsgs.length === 0) {
+    // 2. 「メッセージが空」＝「初めての利用」のときだけ質問を送る
+    if (snapshot.empty) {
       await addMessageToFirestore(
         "gemini-bot",
         "Gemini先生",
@@ -86,6 +83,13 @@ onAuthStateChanged(auth, async (user) => {
         questions[0],
         user.uid,
       );
+      currentStep = 0;
+      userAnswers = [];
+    } else {
+      // 3. すでに履歴がある場合は、既存データからcurrentStepなどを復元
+      const userMsgs = snapshot.docs.filter((d) => d.data().uid === user.uid);
+      userAnswers = userMsgs.map((d) => d.data().text);
+      currentStep = userMsgs.length;
     }
   } else {
     document.getElementById("loginBtn").style.display = "block";
@@ -114,6 +118,7 @@ document.getElementById("sendBtn").onclick = async () => {
     text,
     user.uid,
   );
+
   userAnswers.push(text);
 
   try {
